@@ -1,0 +1,82 @@
+---
+resources:
+- name: repo
+  type: git
+  source:
+    uri: ssh://git@github.com/nanorobocop/http-test-server.git
+    branch: master
+    private_key: ((private_key))
+
+jobs:
+- name: job-test
+  plan:
+  - get: repo
+    trigger: true
+  - task: task-test
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: golang
+          tag: 1.11-alpine
+      inputs:
+      - name: repo
+      params:
+        CGO_ENABLED: "0"
+      run:
+        path: go
+        args:
+        - test
+        - ./...
+        - -v
+- name: job-vet
+  plan:
+  - get: repo
+    trigger: true
+  - task: task-vet
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: golang
+          tag: 1.11-alpine
+      inputs:
+      - name: repo
+      params:
+        CGO_ENABLED: "0"
+      run:
+        path: go
+        args:
+        - vet
+        - -v
+        - ./...
+- name: job-build
+  plan:
+  - get: repo
+    passed:
+    - job-vet
+    - job-test
+    trigger: true
+  - task: task-build
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: golang
+          tag: 1.11-alpine
+      inputs:
+      - name: repo
+      params:
+        CGO_ENABLED: "0"
+      run:
+        path: go
+        args:
+        - build
+        - -o
+        - bin/http-test-server
+        - ./...
+      outputs:
+      - name: bin
