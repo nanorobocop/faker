@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -29,6 +30,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		if urlParts[1] == "echo" {
 			fmt.Fprintf(w, "%s", strings.Join(urlParts[2:], "/")+"\n")
 			return
+		} else if r.URL.Path == "/ip" {
+			remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
+			fmt.Fprintf(w, "%s", remoteAddr)
 		} else if codeInt, codeStr, err := getHTTPCode(urlParts[1]); err == nil {
 			codeMessage := strconv.Itoa(codeInt) + " " + codeStr
 			http.Error(w, codeMessage, codeInt)
