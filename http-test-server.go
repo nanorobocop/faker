@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
@@ -33,6 +34,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		} else if r.URL.Path == "/ip" {
 			remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
 			fmt.Fprintf(w, "%s", remoteAddr)
+		} else if urlParts[1] == "sleep" && len(urlParts) == 3 {
+			seconds, err := strconv.Atoi(urlParts[2])
+			if err != nil {
+				http.Error(w, "Cannot sleep specified time", 500)
+			}
+			time.Sleep(time.Duration(seconds) * time.Second)
+			fmt.Fprintf(w, "Slept for %v seconds", seconds)
 		} else if codeInt, codeStr, err := getHTTPCode(urlParts[1]); err == nil {
 			codeMessage := strconv.Itoa(codeInt) + " " + codeStr
 			http.Error(w, codeMessage, codeInt)
