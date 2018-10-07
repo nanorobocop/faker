@@ -29,24 +29,27 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		urlParts := strings.Split(r.URL.Path, "/")
 		if urlParts[1] == "echo" {
-			fmt.Fprintf(w, "%s", strings.Join(urlParts[2:], "/")+"\n")
+			fmt.Fprintf(w, "%s", strings.Join(urlParts[2:], "/"))
 			return
 		} else if r.URL.Path == "/ip" {
 			remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
 			fmt.Fprintf(w, "%s", remoteAddr)
+			return
 		} else if urlParts[1] == "sleep" && len(urlParts) == 3 {
 			seconds, err := strconv.Atoi(urlParts[2])
 			if err != nil {
 				http.Error(w, "Cannot sleep specified time", 500)
+				return
 			}
 			time.Sleep(time.Duration(seconds) * time.Second)
-			fmt.Fprintf(w, "Slept for %v seconds", seconds)
+			fmt.Fprintf(w, "Slept for %v second(s)", seconds)
+			return
 		} else if codeInt, codeStr, err := getHTTPCode(urlParts[1]); err == nil {
 			codeMessage := strconv.Itoa(codeInt) + " " + codeStr
 			http.Error(w, codeMessage, codeInt)
 			return
 		} else {
-			fmt.Fprintf(w, "Hello there %s!\n", r.URL.Path[1:])
+			fmt.Fprintf(w, "Hello there %s!", r.URL.Path[1:])
 			return
 		}
 	case "POST":
