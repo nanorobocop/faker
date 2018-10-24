@@ -68,4 +68,4 @@ jobs:
     trigger: true
   - put: docker-image
     params:
-      build: git-repo 
+      build: repo 
