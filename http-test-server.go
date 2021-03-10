@@ -53,6 +53,17 @@ func handlerCode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handlerHeaders(w http.ResponseWriter, r *http.Request) {
+	if r.Host != "" {
+		fmt.Fprintf(w, "Host: %s\n", r.Host)
+	}
+	for k, v := range r.Header {
+		for _, vv := range v {
+			fmt.Fprintf(w, "%s: %s\n", k, vv)
+		}
+	}
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -61,6 +72,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			handlerEcho(w, r)
 		} else if r.URL.Path == "/ip" {
 			handlerIP(w, r)
+		} else if r.URL.Path == "/headers" {
+			handlerHeaders(w, r)
+			return
 		} else if len(urlParts) == 3 && urlParts[1] == "sleep" {
 			handlerSleep(w, r)
 		} else if _, err := strconv.Atoi(urlParts[1]); err == nil {
