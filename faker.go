@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -10,6 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	port = flag.Int("port", 8080, "port number")
 )
 
 func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
@@ -93,6 +98,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	flag.Parse()
 	http.HandleFunc("/", handler)
-	log.Fatal(http.ListenAndServe(":8090", nil))
+	fmt.Printf("Running on port :%d\n", *port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
