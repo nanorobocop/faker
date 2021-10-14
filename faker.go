@@ -13,8 +13,13 @@ import (
 	"time"
 )
 
+type app struct {
+	code int
+}
+
 var (
 	port = flag.Int("port", 8080, "port number")
+	code = flag.Int("code", 200, "response code")
 )
 
 func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
@@ -29,36 +34,49 @@ func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
 	return codeInt, codeStr, nil
 }
 
-func handlerEcho(w http.ResponseWriter, r *http.Request) {
+func (a *app) handlerEcho(w http.ResponseWriter, r *http.Request) {
 	urlParts := strings.Split(r.URL.Path, "/")
+
+	w.WriteHeader(a.code)
 	fmt.Fprintf(w, "%s", strings.Join(urlParts[2:], "/"))
 }
 
-func handlerIP(w http.ResponseWriter, r *http.Request) {
+func (a *app) handlerIP(w http.ResponseWriter, r *http.Request) {
 	remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	w.WriteHeader(a.code)
 	fmt.Fprintf(w, "%s", remoteAddr)
 }
 
-func handlerSleep(w http.ResponseWriter, r *http.Request) {
+func (a *app) handlerSleep(w http.ResponseWriter, r *http.Request) {
 	urlParts := strings.Split(r.URL.Path, "/")
 	seconds, err := strconv.Atoi(urlParts[2])
 	if err != nil {
 		http.Error(w, "Cannot sleep specified time", 500)
 		return
 	}
+
 	time.Sleep(time.Duration(seconds) * time.Second)
+
+	w.WriteHeader(a.code)
 	fmt.Fprintf(w, "Slept for %v second(s)", seconds)
 }
 
-func handlerCode(w http.ResponseWriter, r *http.Request) {
+func (a *app) handlerCode(w http.ResponseWriter, r *http.Request) {
 	urlParts := strings.Split(r.URL.Path, "/")
-	if codeInt, codeStr, err := getHTTPCode(urlParts[1]); err == nil {
-		codeMessage := strconv.Itoa(codeInt) + " " + codeStr
-		http.Error(w, codeMessage, codeInt)
+	codeInt, codeStr, err := getHTTPCode(urlParts[1])
+	if err != nil {
+		http.Error(w, "Failed to parse code, code should be integer", 400)
+		return
 	}
+
+	codeMessage := strconv.Itoa(codeInt) + " " + codeStr
+	http.Error(w, codeMessage, codeInt)
 }
 
-func handlerHeaders(w http.ResponseWriter, r *http.Request) {
+func (a *app) handlerHeaders(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(a.code)
+
 	if r.Host != "" {
 		fmt.Fprintf(w, "Host: %s\n", r.Host)
 	}
@@ -69,25 +87,31 @@ func handlerHeaders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		urlParts := strings.Split(r.URL.Path, "/")
 		if urlParts[1] == "echo" {
-			handlerEcho(w, r)
+			a.handlerEcho(w, r)
+			return
 		} else if r.URL.Path == "/ip" {
-			handlerIP(w, r)
+			a.handlerIP(w, r)
+			return
 		} else if r.URL.Path == "/headers" {
-			handlerHeaders(w, r)
+			a.handlerHeaders(w, r)
 			return
 		} else if len(urlParts) == 3 && urlParts[1] == "sleep" {
-			handlerSleep(w, r)
+			a.handlerSleep(w, r)
+			return
 		} else if _, err := strconv.Atoi(urlParts[1]); err == nil {
-			handlerCode(w, r)
+			a.handlerCode(w, r)
+			return
 		} else {
+			w.WriteHeader(a.code)
 			fmt.Fprintf(w, "Hello there %s!", r.URL.Path[1:])
 		}
 	case "POST":
+		w.WriteHeader(a.code)
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(r.Body)
 		s := buf.String()
@@ -99,7 +123,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	http.HandleFunc("/", handler)
+
+	a := &app{
+		code: *code,
+	}
+
+	http.HandleFunc("/", a.handler)
 	fmt.Printf("Running on port :%d\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }

@@ -88,7 +88,8 @@ func TestHandler(t *testing.T) {
 		req, _ := http.NewRequest(step.method, step.path, bytes.NewReader(step.data))
 		req.RemoteAddr = "1.2.3.4:12345"
 		rec := httptest.NewRecorder()
-		http.HandlerFunc(handler).ServeHTTP(rec, req)
+		a := &app{code: 200}
+		http.HandlerFunc(a.handler).ServeHTTP(rec, req)
 
 		if step.expCode == rec.Code && string(step.expData) == rec.Body.String() {
 			t.Logf(`[TEST PASSED] Data: method %v, path %v, data %v
