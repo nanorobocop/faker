@@ -14,12 +14,13 @@ import (
 )
 
 type app struct {
-	code int
+	code     *int
+	resp     *string
+	respType *string
 }
 
 var (
 	port = flag.Int("port", 8080, "port number")
-	code = flag.Int("code", 200, "response code")
 )
 
 func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
@@ -37,14 +38,18 @@ func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
 func (a *app) handlerEcho(w http.ResponseWriter, r *http.Request) {
 	urlParts := strings.Split(r.URL.Path, "/")
 
-	w.WriteHeader(a.code)
+	if a.code != nil {
+		w.WriteHeader(*a.code)
+	}
 	fmt.Fprintf(w, "%s", strings.Join(urlParts[2:], "/"))
 }
 
 func (a *app) handlerIP(w http.ResponseWriter, r *http.Request) {
 	remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
 
-	w.WriteHeader(a.code)
+	if a.code != nil {
+		w.WriteHeader(*a.code)
+	}
 	fmt.Fprintf(w, "%s", remoteAddr)
 }
 
@@ -58,7 +63,9 @@ func (a *app) handlerSleep(w http.ResponseWriter, r *http.Request) {
 
 	time.Sleep(time.Duration(seconds) * time.Second)
 
-	w.WriteHeader(a.code)
+	if a.code != nil {
+		w.WriteHeader(*a.code)
+	}
 	fmt.Fprintf(w, "Slept for %v second(s)", seconds)
 }
 
@@ -75,7 +82,9 @@ func (a *app) handlerCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handlerHeaders(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(a.code)
+	if a.code != nil {
+		w.WriteHeader(*a.code)
+	}
 
 	if r.Host != "" {
 		fmt.Fprintf(w, "Host: %s\n", r.Host)
@@ -107,11 +116,25 @@ func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 			a.handlerCode(w, r)
 			return
 		} else {
-			w.WriteHeader(a.code)
+			if a.respType != nil {
+				w.Header().Set("Content-Type", *a.respType)
+			}
+
+			if a.code != nil {
+				w.WriteHeader(*a.code)
+			}
+
+			if a.resp != nil {
+				w.Write([]byte(*a.resp))
+				return
+			}
+
 			fmt.Fprintf(w, "Hello there %s!", r.URL.Path[1:])
 		}
 	case "POST":
-		w.WriteHeader(a.code)
+		if a.code != nil {
+			w.WriteHeader(*a.code)
+		}
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(r.Body)
 		s := buf.String()
@@ -122,11 +145,13 @@ func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	flag.Parse()
-
 	a := &app{
-		code: *code,
+		code:     flag.Int("code", 200, "response code"),
+		resp:     flag.String("resp", "", "response content"),
+		respType: flag.String("resp-type", "", "response content"),
 	}
+
+	flag.Parse()
 
 	http.HandleFunc("/", a.handler)
 	fmt.Printf("Running on port :%d\n", *port)
