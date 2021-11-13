@@ -20,7 +20,10 @@ type app struct {
 }
 
 var (
-	port = flag.Int("port", 8080, "port number")
+	port     = flag.Int("port", 8080, "port number")
+	code     = flag.Int("code", 200, "response code")
+	resp     = flag.String("resp", "", "response content")
+	respType = flag.String("resp-type", "", "response content")
 )
 
 func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
@@ -146,9 +149,9 @@ func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	a := &app{
-		code:     flag.Int("code", 200, "response code"),
-		resp:     flag.String("resp", "", "response content"),
-		respType: flag.String("resp-type", "", "response content"),
+		code:     code,
+		resp:     resp,
+		respType: respType,
 	}
 
 	flag.Parse()
