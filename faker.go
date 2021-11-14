@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type app struct {
@@ -98,53 +101,71 @@ func (a *app) handlerHeaders(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+func (a *app) handlerPost(w http.ResponseWriter, r *http.Request) {
+	if a.code != nil {
+		w.WriteHeader(*a.code)
+	}
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	s := buf.String()
+	fmt.Fprintf(w, "%v", s)
+}
+
+func (a *app) handlerDefault(w http.ResponseWriter, r *http.Request) {
+	if a.respType != nil {
+		w.Header().Set("Content-Type", *a.respType)
+	}
+
+	if a.code != nil {
+		w.WriteHeader(*a.code)
+	}
+
+	if a.resp != nil {
+		w.Write([]byte(*a.resp))
+		return
+	}
+
+	fmt.Fprintf(w, "Hello there %s!", r.URL.Path[1:])
+}
+
+func (a *app) handlerNotImplemented(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Not implemented", 501)
+}
+
+type handler struct {
+	name    string
+	handler http.HandlerFunc
+}
+
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	MetricsHandler(h.name, h.handler).ServeHTTP(w, r)
+}
 
 func (a *app) handler(w http.ResponseWriter, r *http.Request) {
+	var h handler
+
 	switch r.Method {
 	case "GET":
 		urlParts := strings.Split(r.URL.Path, "/")
 		if urlParts[1] == "echo" {
-			a.handlerEcho(w, r)
-			return
+			h = handler{"echo", a.handlerEcho}
 		} else if r.URL.Path == "/ip" {
-			a.handlerIP(w, r)
-			return
+			h = handler{"ip", a.handlerIP}
 		} else if r.URL.Path == "/headers" {
-			a.handlerHeaders(w, r)
-			return
+			h = handler{"headers", a.handlerHeaders}
 		} else if len(urlParts) == 3 && urlParts[1] == "sleep" {
-			a.handlerSleep(w, r)
-			return
+			h = handler{"sleep", a.handlerSleep}
 		} else if _, err := strconv.Atoi(urlParts[1]); err == nil {
-			a.handlerCode(w, r)
-			return
+			h = handler{"code", a.handlerCode}
 		} else {
-			if a.respType != nil {
-				w.Header().Set("Content-Type", *a.respType)
-			}
-
-			if a.code != nil {
-				w.WriteHeader(*a.code)
-			}
-
-			if a.resp != nil {
-				w.Write([]byte(*a.resp))
-				return
-			}
-
-			fmt.Fprintf(w, "Hello there %s!", r.URL.Path[1:])
+			h = handler{"default", a.handlerDefault}
 		}
 	case "POST":
-		if a.code != nil {
-			w.WriteHeader(*a.code)
-		}
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(r.Body)
-		s := buf.String()
-		fmt.Fprintf(w, "%v", s)
+		h = handler{"post", a.handlerPost}
 	default:
-		http.Error(w, "Not implemented", 501)
+		h = handler{"not implemented", a.handlerNotImplemented}
 	}
+	h.ServeHTTP(w, r)
 }
 
 func main() {
@@ -156,7 +177,11 @@ func main() {
 
 	flag.Parse()
 
+	prometheus.MustRegister(inFlightGauge, counter, duration, responseSize)
+
 	http.HandleFunc("/", a.handler)
+	http.Handle("/metrics", promhttp.Handler())
+
 	fmt.Printf("Running on port :%d\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
