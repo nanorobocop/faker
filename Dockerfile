@@ -1,7 +1,7 @@
 FROM golang:1.17-alpine AS builder
 WORKDIR /src
-COPY faker.go .
-RUN CGO_ENABLED=0 GOOS=linux go build -o faker faker.go
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o faker .
 
 FROM alpine:latest
 WORKDIR /app
