@@ -138,7 +138,8 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	MetricsHandler(h.name, h.handler).ServeHTTP(w, r)
+	LoggerHandler(LoggerSettings{},
+		MetricsHandler(h.name, h.handler)).ServeHTTP(w, r)
 }
 
 func (a *app) handler(w http.ResponseWriter, r *http.Request) {
