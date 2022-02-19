@@ -28,6 +28,7 @@ type LoggerSettings struct {
 type LogMessage struct {
 	Date            string `json:"date"`
 	DurationNs      int    `json:"durationNs"`
+	Method          string `json:"method"`
 	URL             string `json:"url"`
 	ResponseCode    int    `json:"responseCode"`
 	RequestHeaders  string `json:"requestHeaders,omitempty"`
@@ -51,6 +52,7 @@ func LoggerHandler(settings LoggerSettings, next http.Handler) http.Handler {
 		log := LogMessage{
 			Date:         start.Format(time.RFC3339Nano),
 			DurationNs:   int(duration.Nanoseconds()),
+			Method:       r.Method,
 			URL:          r.URL.String(),
 			ResponseCode: rw.code,
 		}
