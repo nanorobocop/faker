@@ -146,7 +146,7 @@ func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 	var h handler
 
 	switch r.Method {
-	case "GET":
+	case "GET", "HEAD":
 		urlParts := strings.Split(r.URL.Path, "/")
 		if urlParts[1] == "echo" {
 			h = handler{"echo", a.handlerEcho}
