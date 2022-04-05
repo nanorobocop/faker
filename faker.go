@@ -17,16 +17,18 @@ import (
 )
 
 type app struct {
-	code     *int
-	resp     *string
-	respType *string
+	code       *int
+	resp       *string
+	respType   *string
+	schemaPath *string
 }
 
 var (
-	port     = flag.Int("port", 8080, "port number")
-	code     = flag.Int("code", 200, "response code")
-	resp     = flag.String("resp", "", "response content")
-	respType = flag.String("resp-type", "", "response content")
+	port       = flag.Int("port", 8080, "port number")
+	code       = flag.Int("code", 200, "response code")
+	resp       = flag.String("resp", "", "response content")
+	respType   = flag.String("resp-type", "", "response content")
+	schemaPath = flag.String("schema", "", "schema path or url")
 )
 
 func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
@@ -112,20 +114,18 @@ func (a *app) handlerPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handlerDefault(w http.ResponseWriter, r *http.Request) {
-	if a.respType != nil {
+	if *a.respType != "" {
 		w.Header().Set("Content-Type", *a.respType)
 	}
 
-	if a.code != nil {
-		w.WriteHeader(*a.code)
-	}
+	w.WriteHeader(*a.code)
 
-	if a.resp != nil {
+	if *a.resp != "" {
 		w.Write([]byte(*a.resp))
 		return
 	}
 
-	fmt.Fprintf(w, "Hello there %s!", r.URL.Path[1:])
+	fmt.Fprintf(w, "Hello there, %s!\n", r.URL.Path[1:])
 }
 
 func (a *app) handlerNotImplemented(w http.ResponseWriter, r *http.Request) {
@@ -138,12 +138,18 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	LoggerHandler(LoggerSettings{},
+	LoggerHandler(LoggerSettings{Handler: h.name},
 		MetricsHandler(h.name, h.handler)).ServeHTTP(w, r)
 }
 
 func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 	var h handler
+
+	if *a.schemaPath != "" {
+		h = handler{"schema", a.getSchemaRouter()}
+		h.ServeHTTP(w, r)
+		return
+	}
 
 	switch r.Method {
 	case "GET", "HEAD":
@@ -171,17 +177,19 @@ func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	a := &app{
-		code:     code,
-		resp:     resp,
-		respType: respType,
+		code:       code,
+		resp:       resp,
+		respType:   respType,
+		schemaPath: schemaPath,
 	}
 
 	flag.Parse()
 
 	prometheus.MustRegister(inFlightGauge, counter, duration, responseSize)
 
-	http.HandleFunc("/", a.handler)
 	http.Handle("/metrics", promhttp.Handler())
+
+	http.HandleFunc("/", a.handler)
 
 	fmt.Printf("Running on port :%d\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
