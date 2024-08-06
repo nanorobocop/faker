@@ -17,10 +17,10 @@ import (
 )
 
 type app struct {
-	code       *int
-	resp       *string
-	respType   *string
-	schemaPath *string
+	code       int
+	resp       string
+	respType   string
+	schemaPath string
 }
 
 var (
@@ -46,18 +46,14 @@ func getHTTPCode(s string) (codeInt int, codeStr string, err error) {
 func (a *app) handlerEcho(w http.ResponseWriter, r *http.Request) {
 	urlParts := strings.Split(r.URL.Path, "/")
 
-	if a.code != nil {
-		w.WriteHeader(*a.code)
-	}
+	w.WriteHeader(a.code)
 	fmt.Fprintf(w, "%s", strings.Join(urlParts[2:], "/"))
 }
 
 func (a *app) handlerIP(w http.ResponseWriter, r *http.Request) {
 	remoteAddr, _, _ := net.SplitHostPort(r.RemoteAddr)
 
-	if a.code != nil {
-		w.WriteHeader(*a.code)
-	}
+	w.WriteHeader(a.code)
 	fmt.Fprintf(w, "%s", remoteAddr)
 }
 
@@ -71,9 +67,7 @@ func (a *app) handlerSleep(w http.ResponseWriter, r *http.Request) {
 
 	time.Sleep(time.Duration(seconds) * time.Second)
 
-	if a.code != nil {
-		w.WriteHeader(*a.code)
-	}
+	w.WriteHeader(a.code)
 	fmt.Fprintf(w, "Slept for %v second(s)", seconds)
 }
 
@@ -90,9 +84,7 @@ func (a *app) handlerCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handlerHeaders(w http.ResponseWriter, r *http.Request) {
-	if a.code != nil {
-		w.WriteHeader(*a.code)
-	}
+	w.WriteHeader(a.code)
 
 	if r.Host != "" {
 		fmt.Fprintf(w, "Host: %s\n", r.Host)
@@ -104,9 +96,7 @@ func (a *app) handlerHeaders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (a *app) handlerPost(w http.ResponseWriter, r *http.Request) {
-	if a.code != nil {
-		w.WriteHeader(*a.code)
-	}
+	w.WriteHeader(a.code)
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
 	s := buf.String()
@@ -114,18 +104,22 @@ func (a *app) handlerPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handlerDefault(w http.ResponseWriter, r *http.Request) {
-	if *a.respType != "" {
-		w.Header().Set("Content-Type", *a.respType)
+	if a.respType != "" {
+		w.Header().Set("Content-Type", a.respType)
 	}
 
-	w.WriteHeader(*a.code)
+	w.WriteHeader(a.code)
 
-	if *a.resp != "" {
-		w.Write([]byte(*a.resp))
+	if a.resp != "" {
+		w.Write([]byte(a.resp))
 		return
 	}
 
-	fmt.Fprintf(w, "Hello there, %s!\n", r.URL.Path[1:])
+	if r.URL.Path[1:] != "" {
+		fmt.Fprintf(w, "Hello there, %s!", r.URL.Path[1:])
+	} else {
+		w.Write([]byte("Hello there!"))
+	}
 }
 
 func (a *app) handlerNotImplemented(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +139,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 	var h handler
 
-	if *a.schemaPath != "" {
+	if a.schemaPath != "" {
 		h = handler{"schema", a.getSchemaRouter()}
 		h.ServeHTTP(w, r)
 		return
@@ -175,15 +169,19 @@ func (a *app) handler(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-func main() {
-	a := &app{
+func initializeApp(code int, resp, respType, schemaPath string) *app {
+	return &app{
 		code:       code,
 		resp:       resp,
 		respType:   respType,
 		schemaPath: schemaPath,
 	}
+}
 
+func main() {
 	flag.Parse()
+
+	a := initializeApp(*code, *resp, *respType, *schemaPath)
 
 	prometheus.MustRegister(inFlightGauge, counter, duration, responseSize)
 

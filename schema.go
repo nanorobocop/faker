@@ -24,7 +24,7 @@ func loadSchema(path string) (schema *openapi3.T, err error) {
 }
 
 func (a *app) getSchemaRouter() http.HandlerFunc {
-	schema, err := loadSchema(*a.schemaPath)
+	schema, err := loadSchema(a.schemaPath)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load schema: %+v", err))
 	}

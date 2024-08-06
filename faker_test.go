@@ -32,7 +32,14 @@ func TestHandler(t *testing.T) {
 			path:    "/",
 			data:    []byte(""),
 			expCode: 200,
-			expData: []byte("Hello there !"),
+			expData: []byte("Hello there!"),
+		},
+		{
+			method:  "GET",
+			path:    "/username",
+			data:    []byte(""),
+			expCode: 200,
+			expData: []byte("Hello there, username!"),
 		},
 		{
 			method:  "GET",
@@ -88,7 +95,7 @@ func TestHandler(t *testing.T) {
 		req, _ := http.NewRequest(step.method, step.path, bytes.NewReader(step.data))
 		req.RemoteAddr = "1.2.3.4:12345"
 		rec := httptest.NewRecorder()
-		a := &app{}
+		a := initializeApp(200, "", "", "")
 		http.HandlerFunc(a.handler).ServeHTTP(rec, req)
 
 		if step.expCode == rec.Code && string(step.expData) == rec.Body.String() {
